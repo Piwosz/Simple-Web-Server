@@ -1,8 +1,11 @@
-cmake_minimum_required (VERSION 2.8.8)
+cmake_minimum_required (VERSION 3.0.2)
 project (Simple-Web-Server)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wextra")
 
-include_directories(.)
+option(SimpleWebServer_BUILD_EXAMPLES
+        "Build SimpleWebServer examples" ON)
+
+include_directories(${PROJECT_SOURCE_DIR})
 
 find_package(Threads REQUIRED)
 
@@ -21,32 +24,39 @@ if(APPLE)
     set(OPENSSL_ROOT_DIR "/usr/local/opt/openssl")
 endif()
 
-add_executable(http_examples http_examples.cpp)
-target_link_libraries(http_examples ${Boost_LIBRARIES})
-target_link_libraries(http_examples ${CMAKE_THREAD_LIBS_INIT})
+add_library(SimpleWebServerLib INTERFACE)
+target_include_directories(SimpleWebServerLib INTERFACE ${PROJECT_SOURCE_DIR})
+target_link_libraries(SimpleWebServerLib INTERFACE ${Boost_LIBRARIES})
 
-#TODO: add requirement for version 1.0.1g (can it be done in one line?)
-find_package(OpenSSL)
+if(SimpleWebServer_BUILD_EXAMPLES)
+        add_executable(http_examples http_examples.cpp)
+        target_link_libraries(http_examples ${Boost_LIBRARIES})
+        target_link_libraries(http_examples ${CMAKE_THREAD_LIBS_INIT})
 
-if(OPENSSL_FOUND)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DHAVE_OPENSSL")
-    target_link_libraries(http_examples ${OPENSSL_LIBRARIES})
-    include_directories(SYSTEM ${OPENSSL_INCLUDE_DIR})
+        #TODO: add requirement for version 1.0.1g (can it be done in one line?)
+        find_package(OpenSSL)
 
-    add_executable(https_examples https_examples.cpp)
-    target_link_libraries(https_examples ${Boost_LIBRARIES})
-    target_link_libraries(https_examples ${OPENSSL_LIBRARIES})
-    target_link_libraries(https_examples ${CMAKE_THREAD_LIBS_INIT})
-endif()
+        if(OPENSSL_FOUND)
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DHAVE_OPENSSL")
+            target_link_libraries(http_examples ${OPENSSL_LIBRARIES})
+            include_directories(SYSTEM ${OPENSSL_INCLUDE_DIR})
 
-if(MSYS) #TODO: Is MSYS true when MSVC is true?
-    target_link_libraries(http_examples ws2_32 wsock32)
-    if(OPENSSL_FOUND)
-        target_link_libraries(https_examples ws2_32 wsock32)
-    endif()
-endif()
+            add_executable(https_examples https_examples.cpp)
+            target_link_libraries(https_examples ${Boost_LIBRARIES})
+            target_link_libraries(https_examples ${OPENSSL_LIBRARIES})
+            target_link_libraries(https_examples ${CMAKE_THREAD_LIBS_INIT})
+        endif()
+
+        if(MSYS) #TODO: Is MSYS true when MSVC is true?
+            target_link_libraries(http_examples ws2_32 wsock32)
+            if(OPENSSL_FOUND)
+                target_link_libraries(https_examples ws2_32 wsock32)
+            endif()
+        endif()
+endif(SimpleWebServer_BUILD_EXAMPLES)
 
 enable_testing()
 add_subdirectory(tests)
+
 
 install(FILES server_http.hpp client_http.hpp server_https.hpp client_https.hpp crypto.hpp utility.hpp status_code.hpp DESTINATION include/simple-web-server)
